@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  project9
+
+  Sample SAM Template for project9
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Tracing: Active
+  Api:
+    TracingEnabled: true
+
+Resources:
+  CallbackSQSMachine:
+    Type: AWS::Serverless::StateMachine 
+    Properties:
+      DefinitionUri: statemachine/callback_SQS.yaml
+      DefinitionSubstitutions:
+        MySQSQueueArn: !GetAtt MySQSQueue.Arn
+        MySQSQueueUrl: !Ref MySQSQueue
+      Policies: 
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt MySQSQueue.QueueName          
+
+  MySQSQueue:
+    Type: AWS::SQS::Queue
+    Properties: 
+      QueueName: MySQSQueue
+
+  SQSLambdaFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: functions/MySQSLambda/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Architectures:
+      - x86_64
+      Policies: 
+        - AWSStepFunctionsFullAccess
+      
+      Events: 
+        MySQSEvent:
+          Type: SQS
+          Properties:  
+            Queue: !GetAtt MySQSQueue.Arn
+
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Join:
+        - ''
+        - - ApplicationInsights-SAM-
+          - Ref: AWS::StackName
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Fn::Join:
+        - ''
+        - - ApplicationInsights-SAM-
+          - Ref: AWS::StackName
+      AutoConfigurationEnabled: 'true'
+    DependsOn: ApplicationResourceGroup
+

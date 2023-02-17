@@ -1,0 +1,20 @@
+---
+  Comment: A state machine that make a callback on SQS Queue.
+  StartAt: Send Message
+  States:
+    Send Message:
+      Type: Task
+      Resource: "arn:aws:states:::sqs:sendMessage.waitForTaskToken"
+      Parameters: 
+        QueueUrl: "${MySQSQueueUrl}"
+        MessageBody: 
+          MessageTitle: "Task is being executed, waiting for task token."
+          TaskToken.$: "$$.Task.Token"
+      Retry:
+      - ErrorEquals:
+        - States.TaskFailed
+        IntervalSeconds: 15
+        MaxAttempts: 5
+        BackoffRate: 1.5
+      End: true
+    
